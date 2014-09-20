@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC
+       "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+       "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+       
+<tiles-definitions>
+    <definition name="indexTemplate" template="/WEB-INF/tilestemplate/jsp/indexTemplate.jsp">
+        <put-attribute name="title" value="" />
+        <put-attribute name="body" value="" />
+    </definition> 
+    <definition name="login" extends="indexTemplate">
+        <put-attribute name="title" value="Avi-Oil Login" />
+        <put-attribute name="body" value="/WEB-INF/view/jsp/login.jsp" />
+    </definition>
+    <definition name="userChat" extends="indexTemplate">
+        <put-attribute name="title" value="Avi-Oil Welcome User" />
+        <put-attribute name="body" value="/WEB-INF/view/jsp/userChat.jsp" />
+    </definition>
+</tiles-definitions>
