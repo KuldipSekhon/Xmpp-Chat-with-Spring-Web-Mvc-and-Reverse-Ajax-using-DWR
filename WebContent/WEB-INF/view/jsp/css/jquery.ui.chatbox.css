@@ -1,16 +1,17 @@
 /* style sheets */
 .ui-chatbox {
-    position: fixed;
+    /* position: fixed; */
+    position: relative;
     bottom:0;
     padding: 2px;
     background:  #CCCCCC;
-     z-index: 9999;
+    z-index: 9999;
 }
 
 .ui-chatbox-titlebar {
     cursor: pointer;
-    height: 35px;
-    line-height: 35px;
+    height: 24px;
+    line-height: 22px;
 	font-weight: normal;
     padding: 3px;
 }
@@ -23,7 +24,7 @@
 
 .ui-chatbox-log {
     padding: 3px;
-    height: 250px;
+    height: 200px;
     overflow-y: auto;
     overflow-x: hidden;
     background: #FFFFFF;

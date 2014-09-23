@@ -23,14 +23,16 @@
             user: null, // can be anything associated with this chatbox
             hidden: false,
             offset: 0, // relative to right edge of the browser window
-            width: 300, // width of the chatbox
+            width: 250, // width of the chatbox
             messageSent: function(id, user, msg) {
                 // override this
                 this.boxManager.addMsg(user.first_name, msg);
             },
             boxClosed: function(id) {
-            	$("#chatboxcreated").remove();
-    			$('<div id="chat_div"></div>').appendTo("#open_chat_box");
+            	var newchatid="#"+title.split("@")[0]+"chatboxcreated";
+            	$(newchatid).remove();
+            	var openid="#"+title.split("@")[0]+"open_chat_box";
+    			$('<div id="'+title.split("@")[0]+'chat_div"></div>').appendTo(openid);
             }, // called when the close icon is clicked
             boxManager: {
                 // thanks to the widget factory facility
@@ -101,7 +103,7 @@
             options = self.options,
             title = options.title || "No Title",
             // chatbox
-            uiChatbox = (self.uiChatbox = $('<div id="chatboxcreated"></div>'))
+            uiChatbox = (self.uiChatbox = $('<div id="'+title.split("@")[0]+'chatboxcreated"></div>'))
                 .appendTo(document.body)
                 .addClass('ui-widget ' +
                           'ui-corner-top ' +
@@ -263,7 +265,8 @@
             this.uiChatboxInputBox.css("width", (width - 18) + "px");
         },
         _position: function(offset) {
-            this.uiChatbox.css("right", offset);
+            //this.uiChatbox.css("right", offset);
+        	this.uiChatbox.css("float", "right");
         }
     });
 }(jQuery));

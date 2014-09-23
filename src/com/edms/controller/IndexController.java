@@ -1,15 +1,9 @@
 package com.edms.controller;
 
 import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-
-import org.hibernate.service.spi.InjectService;
-import org.jivesoftware.smack.bosh.XMPPBOSHConnection;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -17,8 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.SessionAttributes;
-import org.springframework.web.servlet.ModelAndView;
 
 import com.edms.dwr.XmppChatClass;
 import com.edms.model.LoginModel;
@@ -28,6 +20,12 @@ import com.edms.model.LoginModel;
 public class IndexController {
 	
 	@Autowired private XmppChatClass xmppChatClass;
+	
+	@Value ("${https}") private Boolean https;
+	@Value ("${host}") private String host;
+	@Value ("${port}") private int port;
+	@Value ("${filePath}") private String filePath;
+	@Value ("${xmppDomain}") private String xmppDomain;
 	
 	@RequestMapping(value="/index", method=RequestMethod.GET)
 	public String getIndex(ModelMap map){
@@ -41,10 +39,9 @@ public class IndexController {
 		System.out.println("in login..........");
 		System.out.println("userid="+loginUser.getUserid());
 		System.out.println("password="+loginUser.getPassword());
-		xmppChatClass.createConnection(true,"mail.speedymx.com",5280, "/http-bind", "speedymx.com");
+		xmppChatClass.createConnection(https, host, port, filePath, xmppDomain);
 		xmppChatClass.getRoster();
 		xmppChatClass.performLogin(loginUser.getUserid(), loginUser.getPassword());
-		//xmppChatService.connectAndLogin(true,"mail.speedymx.com",5280, "/http-bind", "speedymx.com", loginUser.getUserid(), loginUser.getPassword());
 		return "redirect:/userChat";
 	}
 	
@@ -59,7 +56,7 @@ public class IndexController {
     {   
 		String message=requestParams.get("message");
 		String buddyJID=requestParams.get("buddyJID");
-		xmppChatClass.sendMessage(message, buddyJID);
+		xmppChatClass.sendAndReceiveMessages(message, buddyJID);
 		return "success";
     }
 	

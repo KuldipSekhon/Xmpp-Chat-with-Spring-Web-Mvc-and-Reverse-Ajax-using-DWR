@@ -109,5 +109,6 @@ Note that, with Spring 3.0, this tag works in Servlet MVC only!  -->
     </property>
 </bean>
 
+<bean id="webContextFactory" class="org.directwebremoting.WebContextFactory"></bean>
 
 </beans>

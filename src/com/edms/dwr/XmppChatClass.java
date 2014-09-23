@@ -9,6 +9,7 @@ import java.util.List;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpSession;
+import javax.validation.Valid;
 
 import org.apache.commons.collections.comparators.ReverseComparator;
 import org.directwebremoting.ServerContext;
@@ -33,6 +34,7 @@ import org.jivesoftware.smack.bosh.XMPPBOSHConnection;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Presence;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -41,34 +43,14 @@ public class XmppChatClass {
 	@Autowired private HttpSession httpSession;
 	@Autowired private ServletContext servletContext;
 	
-	private static final int packetReplyTimeout = 20000; // millis
+	@Value ("${packetReplyTimeout}") private int packetReplyTimeout; // millis
+	
+	//private static final int pktReplyTimeout = packetReplyTimeout; 
 	private static XMPPBOSHConnection xmppConnection;
 	private static ChatManager chatManager;
 	private static MessageListener messageListener;
 	private static XMPPConnection conn;
-	public static Chat chat;
-	/*private Boolean https;
-	private String host;
-	private int port;
-	private String filePath;
-	private String xmppDomain;
-	private String username;
-	private String password;*/
-	
-	private int count=0;
-	
-	
-	
-	/*public XmppChatClass(Boolean https, String host, int port, String filePath,
-			String xmppDomain, String username, String password){
-		this.https=https;
-		this.host=host;
-		this.port=port;
-		this.filePath=filePath;
-		this.xmppDomain=xmppDomain;
-		this.username=username;
-		this.password=password;		
-	}*/
+	public static Chat chat;	
 	
 	public void createConnection(Boolean https, String host, int port, String filePath, String xmppDomain){
 		System.out.println("initializing connection to server"+host);
@@ -115,9 +97,6 @@ public class XmppChatClass {
 			httpSession.setAttribute("xmppConnection", xmppConnection);
 			System.out.println("Connected to server............"+xmppConnection.isConnected());
 			System.out.println("connection id="+xmppConnection.getConnectionID());
-			
-			//chatManager=chatManager.getInstanceFor(xmppConnection);
-			
 		} catch (NotConnectedException nce) {
 			nce.printStackTrace();
 		} catch (SmackException se) {
@@ -135,9 +114,8 @@ public class XmppChatClass {
 			  	@Override
 			  	public void presenceChanged(Presence presence) {
 			  		System.out.println("Presence changed: " + presence.getFrom() + " " + presence);
-			  		if(presence.isAvailable()){
-			  			System.out.println(presence.getFrom()+" is available===========================================");
-			  			}
+			  		ServerContext serverContext = ServerContextFactory.get(servletContext);
+			  		(new ReverseClass()).updatePresence(serverContext, presence);
 			  	}
 			  	
 			  	@Override
@@ -173,7 +151,7 @@ public class XmppChatClass {
 		AccountManager am = AccountManager.getInstance(xmppConnection);
 		am.getAccountAttributes();
 			
-		am.getAccountAttribute("FN");
+		am.getAccountAttribute("FN"); //CN for name and jpegPhoto 
 		am.getAccountAttribute("NICKNAME");
 		am.getAccountAttribute("EMAIL");
 		am.getAccountAttribute("FAMILY");
@@ -214,19 +192,15 @@ public class XmppChatClass {
 			System.out.println("Message sent successfully");
 	}*/
 	
-	public void sendMessage(String message, String buddyJID){
+	public void sendAndReceiveMessages(String message, String buddyJID){
 		System.out.println("Sending Message "+message+" to buddy "+buddyJID);
 		Chat chat=chatManager.getInstanceFor(xmppConnection).createChat(buddyJID, new MessageListener() {
 			
 			@Override
-			public void processMessage(Chat chats, Message messages) {
-				String from=messages.getFrom();
-				String newmsg=messages.getBody();
-				
+			public void processMessage(Chat chat, Message message) {
+				System.out.println("SERVICE Received new msg="+message.getBody()+" from "+message.getFrom());
 				ServerContext serverContext = ServerContextFactory.get(servletContext);
-				
-				(new ReverseClass()).testing(serverContext, newmsg);
-				System.out.println("SERVICE Received new msg="+newmsg+" from "+from);
+				(new ReverseClass()).listeningForMessages(serverContext, message);
 			}
 		});
 		try {
@@ -238,19 +212,6 @@ public class XmppChatClass {
 			e.printStackTrace();
 		}
 	}
-	
-	/*public void sendAndReceiveMessages(String message, String buddyJID){
-		System.out.println("Sending msg "+message+" to "+buddyJID);
-		Chat chat=chatManager.getInstanceFor(xmppConnection).createChat(buddyJID, new MessageListener() {
-			
-			@Override
-			public void processMessage(Chat arg0, Message arg1) {
-				// TODO Auto-generated method stub
-				
-			}
-		})
-	}*/
-
 	
 	 /**
 	   * This method continually calls the update method utill the

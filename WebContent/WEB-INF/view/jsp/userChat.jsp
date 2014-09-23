@@ -40,12 +40,24 @@
 				var box = null;
 				
 				var chatname=username.split("name");
-					box = $("#chat_div").chatbox(
+				var userchatid=username.split("@");
+				
+				//var opendiv=document.createElement("div");
+				//opendiv.id=chatname[0]+"open_chat_box";
+				var id="#"+userchatid[0]+"open_chat_box";
+				$("#appendchatdiv").append("<div id='"+userchatid[0]+"open_chat_box'></div>");
+				
+				//var newdiv=document.createElement("div");
+				//alert("2");
+				//newdiv.id="chat_div";
+				$(id).append("<div id='"+userchatid[0]+"chat_div'></div>");
+				var chatdivid="#"+userchatid[0]+"chat_div";
+			
+					box = $(chatdivid).chatbox(
 					{
 						/*
 							unique id for chat box
 						*/
-						//id:"Runnable",
 						id:"me",
                         user:
 						{
@@ -54,7 +66,6 @@
 						/*
 							Title for the chat box
 						*/
-						//title : "Runnable User",
 						title : chatname[0],
 						/*
 							messageSend as name suggest,
@@ -62,7 +73,7 @@
 						*/
 						messageSent : function(id, user, msg)
 						{
-                            $("#chat_div").chatbox("option", "boxManager").addMsg(id, msg);
+                            $(chatdivid).chatbox("option", "boxManager").addMsg(id, msg);
                         }
 					});
 		}
@@ -124,18 +135,25 @@ $(document).ready(function() {
 <script language="javascript">
    function onloadmethod() {
       dwr.engine.setActiveReverseAjax(true);
-      ReverseClass.getReverseRoster();
-      //ReverseClass.listeningForMessages();
-      ReverseClass.testing();
    }
 </script>
 
 <script type="text/javascript">
-function updateChatBox(msgarrived){
-	$("#chat_div").append(msgarrived);
-	//var olddiv=document.getElementById("chat_div");
-	//alert("olddiv="+olddiv.innerHTML);
-	//olddiv.innerHTML=olddiv.innerHTML+newmsg;
+function updateChatBox(msglist){
+	var id="#"+msglist[0]+"chat_div";
+	$(id).append(msglist[1]);
+	var divid=msglist[0]+"chat_div";
+    var divv=document.getElementById(divid);
+	if(divv.scrollHeight > divv.clientHeight) {
+    	divv.scrollTop=divv.scrollHeight; 
+    } 
+}
+</script>
+
+<script type="text/javascript">
+function removeLastAppended(anyid){
+	var id="#"+anyid;
+	$(id).remove();
 }
 </script>
 
@@ -815,7 +833,7 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
                          
                    
                    </div><!---------BottOm_End -------------->
-                  <div class="right_left_part left_border_star">
+                  <div class="right_left_part left_border_star" id="appendchatdiv">
               
                          <div class="middle-pane left_border">
                            
@@ -1024,7 +1042,7 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
                    
                    
     <!--Chat box will be generated in this container-->
-		<div id="open_chat_box"><div id="chat_div"></div></div>         
+		<!-- <div id="open_chat_box"><div id="chat_div"></div></div>  -->        
                    
                    </div>
                    

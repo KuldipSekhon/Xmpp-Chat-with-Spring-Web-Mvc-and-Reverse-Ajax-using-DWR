@@ -10,8 +10,8 @@
         </create>
         <convert match="com.edms.dwr.Data" converter="bean"></convert>
       </allow>
-       <!-- <allow>
-        <create creator="new" javascript="XmppChatClass" scope="application">
+      <!--  <allow>
+        <create creator="spring" javascript="XmppChatClass" scope="application">
           <param name="class" value="com.edms.dwr.XmppChatClass"></param>
         </create>
         <convert match="com.edms.dwr.Data" converter="bean"></convert>
