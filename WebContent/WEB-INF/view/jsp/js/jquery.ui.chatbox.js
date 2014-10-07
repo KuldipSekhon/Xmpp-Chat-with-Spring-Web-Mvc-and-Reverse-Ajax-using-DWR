@@ -14,12 +14,11 @@
 
 // TODO: implement destroy()
 (function($) {
-	//var controllerPath;
-	//alert("path="+controllerPath);
     $.widget("ui.chatbox", {
         options: {
             id: null, //id for the DOM element
             title: null, // title of the chatbox
+            imagenm: null, //image for user status
             user: null, // can be anything associated with this chatbox
             hidden: false,
             offset: 0, // relative to right edge of the browser window
@@ -48,11 +47,14 @@
                     $(e).hide();
 
                     var systemMessage = false;
+                    
+                    var para=document.createElement('p');
 
                     if (peer) {
+                        e.appendChild(para);
                         var peerName = document.createElement("b");
                         $(peerName).text(peer + ": ");
-                        e.appendChild(peerName);
+                        para.appendChild(peerName);
                     } else {
                         systemMessage = true;
                     }
@@ -60,7 +62,7 @@
                     var msgElement = document.createElement(
                         systemMessage ? "i" : "span");
                     $(msgElement).text(msg);
-                    e.appendChild(msgElement);
+                    para.appendChild(msgElement);
                     $(e).addClass("ui-chatbox-msg");
                     $(e).css("maxWidth", $(box).width());
                     $(e).fadeIn();
@@ -102,6 +104,7 @@
             var self = this,
             options = self.options,
             title = options.title || "No Title",
+            imagenm = options.imagenm,
             // chatbox
             uiChatbox = (self.uiChatbox = $('<div id="'+title.split("@")[0]+'chatboxcreated"></div>'))
                 .appendTo(document.body)
@@ -119,6 +122,7 @@
                     self.uiChatboxTitlebar.removeClass('ui-state-focus');
                 }),
             // titlebar
+                //alert("js="+imagenm);
             uiChatboxTitlebar = (self.uiChatboxTitlebar = $('<div></div>'))
                 .addClass('ui-widget-header ' +
                           'ui-corner-top ' +
@@ -130,7 +134,8 @@
                 })
                 .appendTo(uiChatbox),
             uiChatboxTitle = (self.uiChatboxTitle = $('<span></span>'))
-                .html(title)
+                .html("<div id='"+title.split("@")[0]+"avlblimg' style='float: left;margin-top: 7px;width: 15px;'>" +
+                		"<img src='images/"+imagenm+"' style='margin-left: 2px;margin-right: 4px;' /></div>"+title)
                 .appendTo(uiChatboxTitlebar),
             uiChatboxTitlebarClose = (self.uiChatboxTitlebarClose = $('<a href="#"></a>'))
                 .addClass('ui-corner-all ' +

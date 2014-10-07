@@ -442,7 +442,7 @@ border-left: 1px solid #ccc;
 	ul.tabs li:first-child{ border-left: 1px solid #ccc;height: 40px;}
 	.left_border_star{  }
 	.cheat_height_small{}
-	.cheat_height_big{ height: 500px;}
+	.cheat_height_big{height: 500px;}
 	.cheat_height_small:hover{ }
 	#tab1 >table{font-size:14px;
 font-family: verdana;}

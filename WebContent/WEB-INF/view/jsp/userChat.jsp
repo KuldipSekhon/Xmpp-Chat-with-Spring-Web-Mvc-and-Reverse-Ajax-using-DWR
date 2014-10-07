@@ -36,20 +36,14 @@
     <script type="text/javascript" src="js/jquery.ui.chatbox.js"></script>
 	
     <script type="text/javascript">
-				function getChatBox(username){
+				function getChatBox(username, image){
 				var box = null;
-				
 				var chatname=username.split("name");
 				var userchatid=username.split("@");
 				
-				//var opendiv=document.createElement("div");
-				//opendiv.id=chatname[0]+"open_chat_box";
 				var id="#"+userchatid[0]+"open_chat_box";
 				$("#appendchatdiv").append("<div id='"+userchatid[0]+"open_chat_box'></div>");
 				
-				//var newdiv=document.createElement("div");
-				//alert("2");
-				//newdiv.id="chat_div";
 				$(id).append("<div id='"+userchatid[0]+"chat_div'></div>");
 				var chatdivid="#"+userchatid[0]+"chat_div";
 			
@@ -67,6 +61,8 @@
 							Title for the chat box
 						*/
 						title : chatname[0],
+						imagenm : image,
+						//alert("img="+imagenm);
 						/*
 							messageSend as name suggest,
 							this will called when message sent.
@@ -157,10 +153,49 @@ function removeLastAppended(anyid){
 }
 </script>
 
+<script type="text/javascript">
+function sendBuddyInvite(){
+	var buddyId=document.getElementById("buddyInvite").value;
+	$.ajax ({
+    	url:"${pageContext.request.contextPath}/inviteBuddy",
+    	data: {
+    		buddyJID:buddyId,
+    	},
+    	success: function(data){
+    		$("#buddyInvite").val("");
+    		alert(data);
+    	}
+    });
+}
+</script>
+
+<script type="text/javascript">
+function friendRequest(from){
+	var acceptfrom=from.split("acceptbtn");
+		$.ajax ({
+	    	url:"${pageContext.request.contextPath}/respondFrndReq",
+	    	data: {
+	    		fromJID:acceptfrom[0],
+	    	},
+	    	success: function(data){
+	    		alert(data);
+	    	}
+	    });
+}
+</script>
+
+<script type="text/javascript">
+function createChatRow(addDivs){
+	document.getElementById("test").innerHTML=addDivs;
+}
+</script>
+
 </head>
 <body onload="onloadmethod()">
 <%HttpSession hsession = request.getSession();
-XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppConnection");%>
+XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppConnection");
+String loggedUser=connection.getUser().split("/")[0];
+%>
 
 <div class="header_main">
 <!--------------// HEADER STARED HERE -------------->
@@ -181,7 +216,7 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
                   
                                    <div class="user_details_left">
                                    
-                                                Welcome : <strong>Hariom Srivastava</strong>
+                                                Welcome : <strong><%=loggedUser %></strong>
                                           
                                                 <div class="claer"></div>
                                                 
@@ -443,20 +478,26 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
                                          
                                  </div>
               <div id="updates"></div>                   
-                                 <div class="chaet_option ">
+                                 <div class="chaet_option" id="chat_options">
+                                 
+      <div>
+      <input type="text" id="buddyInvite" />
+      <input type="button" value="Invite" onclick="sendBuddyInvite()" />
+      </div>
+                                 
                                       <div class="cheat_heading">
                                         Contact Online(5)
                                       </div>
                                       <div class="chaet_scroll cheat_height_big" id="test">
-                                                                                 <!-------- // CHEAT ROW STARTED HERE ------------->
+    <!-------- // CHEAT ROW STARTED HERE ------------->
                                                                                  
   <%
-  String path="off_line.png";
-  try {
-		Thread.sleep(10000);
+   String path="off_line.png";
+ /*  try {
+		Thread.sleep(20000);
   } catch (InterruptedException e) {
   	e.printStackTrace();
-  }
+  } */
   ProviderManager.addIQProvider("vCard", "vcard-temp", new VCardProvider());
   
   Roster roster=connection.getRoster();
@@ -468,15 +509,17 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
   	String user=re.getUser();
   	presence=roster.getPresence(user);
   	System.out.println("before if "+user+" is offline type="+presence.getType()+"Mode="+presence.getMode());
+  	String type=re.getType().toString();
+	if( re.getStatus()==null && type.equals("both")){
   	if(presence.getType()==Presence.Type.available){
   		System.out.println(user+" is online");
   		%>
-  		      <div class="cheat_row">
+  		      <div class="cheat_row" >
                                                     <div class="small_images">
                                                       <img src="images/photo.jpg" />
                                                     </div>
                                                     <div class="contact_information">
-                                                     <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id)"><p><strong><%=user %></strong><br/>Work for fun</p></a>  
+                                                     <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id, 'online_file.png')"><p><strong><%=user %></strong><br/>Work for fun</p></a>  
                                                     </div>
                                                     <div class="online_file" id="<%=user%>" >
                                                       <img src="images/online_file.png" />
@@ -486,19 +529,41 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
 <%  	}
   	else{
   		System.out.println(user+" is offline type="+presence.getType()); %>
-  		 <div class="cheat_row">
+  		 <div class="cheat_row" >
          <div class="small_images">
            <img src="images/photo.jpg" />
          </div>
          <div class="contact_information">
-            <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id)"><p><strong><%=user %></strong><br/>Work for fun</p></a>
+            <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id, 'off_line.png')"><p><strong><%=user %></strong><br/>Work for fun</p></a>
          </div>
          <div class="online_file" id="<%=user%>" >
            <img src="images/off_line.png"/>
          </div>
    
    </div>
- <% 	} 
+ <% 	} } 
+	 else if(re.getStatus()==null && type.equals("none")){ %>
+    	 <div class="cheat_row" >
+         <div class="small_images">Friend Request</div>
+         <div class="contact_information">
+            <a href="#" id="<%=user+"name"%>"><p><strong><%=user %></strong><br/></p></a>
+         </div>
+         <div class="online_file" >
+         <input type="button" value="Accept" onclick="friendRequest(this.id)" id="<%=user+"acceptbtn"%>" style="margin-left: -56px;"/>
+         </div>
+   </div>
+<% }
+	else {%>
+ 
+	  <div class="cheat_row" >
+         <div class="small_images">Pending Request</div>
+         <div class="contact_information">
+            <a href="#" id="<%=user+"name"%>"><p><strong><%=user %></strong><br/></p></a>
+         </div>
+         <div class="online_file" ></div>
+   
+   </div>
+<% }
  
     // To load VCard:
   	VCard card = new VCard();
@@ -507,7 +572,7 @@ XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppCon
 	System.out.println("vcard lname----"+card.getLastName());
   %>
                                              
-<%} %>
+<%} %> 
                                      </div>
                                  
                                  </div>
