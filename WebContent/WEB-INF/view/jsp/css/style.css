@@ -343,6 +343,7 @@ float: left;
 line-height: 3px;
 margin-bottom: 5px;}
 .contact_information{padding-top: 5px;}
+.contact_information a{color: #000;}
 .online_file{float: left;
 /* margin-left: 54px; */
 /* margin-top: -5px; */

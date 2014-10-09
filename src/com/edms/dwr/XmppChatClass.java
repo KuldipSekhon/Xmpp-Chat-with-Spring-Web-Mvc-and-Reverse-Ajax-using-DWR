@@ -30,6 +30,7 @@ import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.SmackException.NotLoggedInException;
+import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.bosh.BOSHConfiguration;
@@ -38,6 +39,9 @@ import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.packet.Presence.Mode;
+import org.jivesoftware.smackx.pubsub.PresenceState;
+import org.jivesoftware.smackx.vcardtemp.packet.VCard;
 
 public class XmppChatClass {
 
@@ -77,6 +81,7 @@ public class XmppChatClass {
 		config.setSecurityMode(SecurityMode.required);
 		config.setRosterLoadedAtLogin(true);
 		config.setCompressionEnabled(true);
+		config.setReconnectionAllowed(true); //If a connected XMPPConnection gets disconnected abruptly, automatic reconnection is enabled 
 		System.out.println("service name=" + config.getServiceName());
 		System.out.println("host=" + config.getHostAddresses());
 		System.out.println("security mode=" + config.getSecurityMode());
@@ -176,8 +181,11 @@ public class XmppChatClass {
 		roster.addRosterListener(new RosterListener() {
 			@Override
 			public void presenceChanged(Presence presence) {
-				System.out.println("Presence changed: " + presence.getFrom()
+				System.out.println("Presence changed: ::::::::::::::::::: " + presence.getFrom()
 						+ " " + presence);
+				System.out.println("presence mode ::::::::::::::::::: "+presence.getMode());
+				System.out.println("presence type ::::::::::::: "+presence.getType());
+				System.out.println("presence is away ::::::::::::: "+presence.isAway());
 				ServerContext serverContext = ServerContextFactory
 						.get(servletContext);
 				(new ReverseClass()).updatePresence(serverContext, presence);
@@ -238,18 +246,18 @@ public class XmppChatClass {
 		try {
 			// login to the connected server
 			xmppConnection.login(username, password);
-
+			
+			// Create the presence object with default availability 
 			Presence presence = new Presence(Presence.Type.available);
-			presence.setStatus("i am online");
+			// Set the status message
+			presence.setStatus("I'm online");
+			// Set the highest priority
+	        presence.setPriority(24);
+			// Set available presence mode
+			presence.setMode(Presence.Mode.available);
+			// Send the presence packet through the connection
 			xmppConnection.sendPacket(presence);
-
-			AccountManager am = AccountManager.getInstance(xmppConnection);
-			am.getAccountAttributes();
-
-			am.getAccountAttribute("FN"); // CN for name and jpegPhoto
-			am.getAccountAttribute("NICKNAME");
-			am.getAccountAttribute("EMAIL");
-			am.getAccountAttribute("FAMILY");
+			
 		} catch (NotConnectedException nce) {
 			nce.printStackTrace();
 		} catch (SmackException se) {
@@ -308,5 +316,58 @@ public class XmppChatClass {
 			e.printStackTrace();
 		}
 		System.out.println("subscribe sent to %%%%%%%%%% " + from);
+	}
+	
+	public void closeConnection(){
+		try {
+			xmppConnection.disconnect();  // Disconnect from the server
+			System.out.println("xmpp connection closed !");
+		} catch (NotConnectedException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void sendChangePresence(String mode){
+		if(mode.equals("online")){
+			Presence presence = new Presence(Presence.Type.available);
+			presence.setStatus("I'm online");
+	        presence.setPriority(24);
+			presence.setMode(Presence.Mode.available);
+			try {
+				xmppConnection.sendPacket(presence);
+			} catch (NotConnectedException e) {
+				e.printStackTrace();
+			}
+		}
+        if(mode.equals("away")){
+        	Presence presence = new Presence(Presence.Type.available);
+			presence.setStatus("I'm not here right now");
+	        presence.setPriority(24);
+			presence.setMode(Presence.Mode.away);
+			try {
+				xmppConnection.sendPacket(presence);
+			} catch (NotConnectedException e) {
+				e.printStackTrace();
+			}
+		}
+        if(mode.equals("dnd")){
+        	Presence presence = new Presence(Presence.Type.available);
+			presence.setStatus("I'm currently busy");
+	        presence.setPriority(24);
+			presence.setMode(Presence.Mode.dnd);
+			try {
+				xmppConnection.sendPacket(presence);
+			} catch (NotConnectedException e) {
+				e.printStackTrace();
+			}
+		}
+        if(mode.equals("offline")){
+        	Presence presence = new Presence(Presence.Type.unavailable);
+			try {
+				xmppConnection.sendPacket(presence);
+			} catch (NotConnectedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 }

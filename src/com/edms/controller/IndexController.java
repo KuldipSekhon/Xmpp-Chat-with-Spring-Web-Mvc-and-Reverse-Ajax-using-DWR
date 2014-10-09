@@ -5,6 +5,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.jivesoftware.smackx.vcardtemp.packet.VCard;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
@@ -31,6 +32,7 @@ public class IndexController {
 	@Value ("${filePath}") private String filePath;
 	@Value ("${xmppDomain}") private String xmppDomain;
 	@Value ("${packetReplyTimeout}") private int packetReplyTimeout; // millis
+	@Value ("${chatImageFolder}") private String chatImageFolder;
 	
 	@RequestMapping(value="/index", method=RequestMethod.GET)
 	public String getIndex(ModelMap map){
@@ -50,13 +52,13 @@ public class IndexController {
 		xmppChatClass.performLogin(loginUser.getUserid(), loginUser.getPassword());
 		scriptSessList.listenScriptSession();
 		request.getSession().setAttribute("xmppChatClass", xmppChatClass);
-		map.addAttribute("loggedUser", loginUser.getUserid());
 		return "redirect:/userChat";
 	}
 	
 	@RequestMapping(value="/userChat", method=RequestMethod.GET)
 	public String getChat(ModelMap map){
 		System.out.println("in userChat..........");
+		map.addAttribute("imageurl", chatImageFolder);
 		return "userChat";
 	}
 	
@@ -82,6 +84,21 @@ public class IndexController {
 		XmppChatClass xmppChatClass=(XmppChatClass)request.getSession().getAttribute("xmppChatClass");
 		xmppChatClass.acceptFrndReq(fromJID);
 		return "Friend Request Accepted Successfully";
+    }
+	
+	@RequestMapping(value = "/logoutChat", method = RequestMethod.GET)
+    public String closeChat(HttpServletRequest request){  
+		XmppChatClass xmppChatClass=(XmppChatClass)request.getSession().getAttribute("xmppChatClass");
+		xmppChatClass.closeConnection();
+		//return null;
+		return "redirect:/index";
+    }
+	
+	@RequestMapping(value = "/changePresence", method = RequestMethod.GET)
+    public void changePresenceInfo(@RequestParam(value="presmode")String presmode, HttpServletRequest request){  
+		XmppChatClass xmppChatClass=(XmppChatClass)request.getSession().getAttribute("xmppChatClass");
+		xmppChatClass.sendChangePresence(presmode);;
+		
     }
 
 }

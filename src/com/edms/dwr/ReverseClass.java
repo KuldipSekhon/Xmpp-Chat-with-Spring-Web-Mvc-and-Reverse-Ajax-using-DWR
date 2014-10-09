@@ -2,11 +2,6 @@ package com.edms.dwr;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 
 import org.directwebremoting.Browser;
 import org.directwebremoting.Container;
@@ -16,20 +11,12 @@ import org.directwebremoting.ScriptSessionFilter;
 import org.directwebremoting.ScriptSessions;
 import org.directwebremoting.ServerContext;
 import org.directwebremoting.ServerContextFactory;
-import org.directwebremoting.WebContext;
-import org.directwebremoting.WebContextFactory;
-import org.directwebremoting.event.ScriptSessionEvent;
-import org.directwebremoting.event.ScriptSessionListener;
 import org.directwebremoting.extend.ScriptSessionManager;
 import org.directwebremoting.proxy.dwr.Util;
-import org.jivesoftware.smack.PacketListener;
 import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.RosterEntry;
-import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.bosh.XMPPBOSHConnection;
-import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smackx.pubsub.PresenceState;
 
@@ -59,7 +46,10 @@ public class ReverseClass {
 				System.out.println("reverse ROSTER SIZE="+entries.size());
 				Presence presence;
 				String addDivs="";
+				String pendDivs="";
+				String frndreqDivs="";
 				for(RosterEntry re:entries){
+					System.out.println("REVERSE Buddy="+re.getName()+" user="+re.getUser()+" status="+re.getStatus()+" type="+re.getType());
 				 String user=re.getUser();
 				 presence=roster.getPresence(user);
 				 String type=re.getType().toString();
@@ -78,17 +68,18 @@ public class ReverseClass {
 				  				"<p><strong>"+user+"</strong><br/>Work for fun</p></a></div>"+
 				  				"<div class='online_file' id='"+user+"' ><img src='images/"+image+"' /></div></div>";
 				  	} } 
-			     else if(re.getStatus()==null && type.equals("none")){
-			    	 addDivs+="<div class='cheat_row' ><div class='small_images'>Friend Request</div>"+
+			     else if(re.getStatus()==null && (type.equals("none") || type.equals("to"))){
+			    	 frndreqDivs+="<div class='cheat_row' >"+
 			    				"<div class='contact_information'><a href='#' id='"+user+"name' ><p><strong>"+user+"</strong><br/></p></a></div>"+
-			    				"<div class='online_file' id="+user+" >"
+			    				"<div class='online_file' >"
 			    						+ "<input type='button' value='Accept' onclick='friendRequest(this.id)' id='"+user+"acceptbtn' style='margin-left: -56px;'/></div></div>";
 			     }
 			     else {
-			    	 addDivs+="<div class='cheat_row' ><div class='small_images'>Pending Request</div>"+
+			    	 pendDivs+="<div class='cheat_row' style='margin-bottom: -16px;'>"+
 			"<div class='contact_information'><a href='#' id='"+user+"name' ><p><strong>"+user+"</strong><br/></p></a></div>"+
-			"<div class='online_file' id="+user+" ></div></div>";
+			"</div>";
 				  	}}
+				addDivs+=frndreqDivs+pendDivs;
 				ScriptSessions.addFunctionCall("createChatRow", addDivs);
 			}
 		});	
@@ -98,18 +89,34 @@ public class ReverseClass {
 		String[] divid = presence.getFrom().split("/");	
 		String [] name=presence.getFrom().split("@");
 		String avlblid=name[0]+"avlblimg";
+		String statusid=divid[0]+"status";
   	    System.out.println("page=========="+serverContext.getContextPath());
   	    String currentPage=serverContext.getContextPath()+"/userChat";
   		Collection sessions = serverContext.getScriptSessionsByPage(currentPage);
 		Util utilAll = new Util(sessions);
   		if(presence.isAvailable()){
-  			System.out.println(presence.getFrom()+" is available===========================================");
+  			Presence.Mode mode=presence.getMode();
+  			System.out.println(presence.getFrom()+" is available=========================================== mode="+mode);
+  			if(mode==Presence.Mode.available || mode==null){
 			utilAll.setValue(divid[0], "<img src='images/online_file.png'>");
 		  	utilAll.setValue(avlblid, "<img src='images/online_file.png' style='margin-left: 2px;margin-right: 4px;' />");
+		  	utilAll.setValue(statusid, presence.getStatus());
+  			}
+  			else if(mode==Presence.Mode.away){
+  				utilAll.setValue(divid[0], "<img src='images/bullet_orange.png'>");
+  			  	utilAll.setValue(avlblid, "<img src='images/bullet_orange.png' style='margin-left: 2px;margin-right: 4px;' />");
+  			  	utilAll.setValue(statusid, presence.getStatus());
+  			}
+            else if(mode==Presence.Mode.dnd){
+            	utilAll.setValue(divid[0], "<img src='images/bullet_red.png'>");
+    		  	utilAll.setValue(avlblid, "<img src='images/bullet_red.png' style='margin-left: 2px;margin-right: 4px;' />");
+    		  	utilAll.setValue(statusid, presence.getStatus());
+  			}
   			}
   		else {
 			utilAll.setValue(divid[0], "<img src='images/off_line.png'>");
 			utilAll.setValue(avlblid, "<img src='images/off_line.png' style='margin-left: 2px;margin-right: 4px;' />");
+			utilAll.setValue(statusid, presence.getStatus());
 		}
 	}
 	
@@ -117,6 +124,7 @@ public class ReverseClass {
 		String from=message.getFrom();
 		final String newmsg=message.getBody();
 		final String [] name=from.split("@");
+		final String [] nameid=from.split("/");
 		String page=null;
 		Container container = ServerContextFactory.get().getContainer();
 		ScriptSessionManager manager = container.getBean(ScriptSessionManager.class);
@@ -143,6 +151,7 @@ public class ReverseClass {
 					ArrayList<String> msglist=new ArrayList<String>();
 					msglist.add(name[0]);
 					msglist.add(msgarrived);
+					msglist.add(nameid[0]);
 					ScriptSessions.addFunctionCall("updateChatBox", msglist);
 				}
 				else{
@@ -151,13 +160,14 @@ public class ReverseClass {
 					ArrayList<String> msglist=new ArrayList<String>();
 					msglist.add(name[0]);
 					msglist.add(typing);
+					msglist.add(nameid[0]);
 					ScriptSessions.addFunctionCall("updateChatBox", msglist);
 				}
 			}
 		});
 	}
 	
-	public void frndRequest(String from, String to){
+	/*public void frndRequest(String from, String to){
 		final String fromUser=from;
 		String page=null;
 		Container container = ServerContextFactory.get().getContainer();
@@ -180,5 +190,5 @@ public class ReverseClass {
 				ScriptSessions.addFunctionCall("friendRequest", fromUser);
 			}
 		});
-		}
+		}*/
 }
