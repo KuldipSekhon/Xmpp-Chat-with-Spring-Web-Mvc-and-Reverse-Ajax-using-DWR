@@ -8,7 +8,9 @@ import org.directwebremoting.ServerContextFactory;
 import org.directwebremoting.event.ScriptSessionEvent;
 import org.directwebremoting.event.ScriptSessionListener;
 import org.directwebremoting.extend.ScriptSessionManager;
+import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.bosh.XMPPBOSHConnection;
+import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -31,7 +33,7 @@ public class ScriptSessList {
 				System.out.println("Script Session Created..........");
 				ServletRequestAttributes sra=((ServletRequestAttributes)RequestContextHolder.currentRequestAttributes());
 				HttpSession httpSession=sra.getRequest().getSession();
-				XMPPBOSHConnection xmppConnection=(XMPPBOSHConnection)httpSession.getAttribute("xmppConnection");
+				XMPPConnection xmppConnection=(XMPPTCPConnection)httpSession.getAttribute("xmppConnection");
 				String [] loginUser=xmppConnection.getUser().split("/");
 				ScriptSession session=ev.getSession();
 				session.setAttribute("scriptAttribute", loginUser[0]);

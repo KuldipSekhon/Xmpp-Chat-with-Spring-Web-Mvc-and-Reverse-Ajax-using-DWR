@@ -1,26 +1,22 @@
 package com.edms.dwr;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.Collection;
+import java.util.HashMap;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.directwebremoting.Container;
-import org.directwebremoting.ScriptSession;
 import org.directwebremoting.ServerContext;
 import org.directwebremoting.ServerContextFactory;
-import org.directwebremoting.event.ScriptSessionEvent;
-import org.directwebremoting.event.ScriptSessionListener;
-import org.directwebremoting.extend.ScriptSessionManager;
-import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManager;
+import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.PacketListener;
 import org.jivesoftware.smack.ConnectionConfiguration.SecurityMode;
 import org.jivesoftware.smack.ChatManagerListener;
+import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.RosterEntry;
@@ -33,76 +29,52 @@ import org.jivesoftware.smack.SmackException.NotLoggedInException;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
-import org.jivesoftware.smack.bosh.BOSHConfiguration;
-import org.jivesoftware.smack.bosh.XMPPBOSHConnection;
 import org.jivesoftware.smack.filter.PacketFilter;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
-import org.jivesoftware.smack.packet.Presence.Mode;
-import org.jivesoftware.smackx.pubsub.PresenceState;
-import org.jivesoftware.smackx.vcardtemp.packet.VCard;
+import org.jivesoftware.smack.tcp.XMPPTCPConnection;
+import org.jivesoftware.smackx.iqlast.LastActivityManager;
+import org.jivesoftware.smackx.iqlast.packet.LastActivity;
+import org.jivesoftware.smackx.xevent.MessageEventManager;
 
 public class XmppChatClass {
 
-	private static ServletContext servletContext;
-	private XMPPBOSHConnection xmppConnection;
-	private static MessageListener messageListener;
-	public static Chat chat;
+	private ServletContext servletContext;
+	private XMPPConnection xmppConnection;
+	private MessageListener messageListener;
+	private Chat chat;
 
-	public void createConnection(Boolean https, String host, int port,
-			String filePath, String xmppDomain, int packetReplyTimeout,
-			HttpServletRequest request) {
-		System.out.println("initializing connection to server" + host);
+	private HashMap<String, Chat> activeChats = new HashMap<String, Chat>();
+
+	public void createConnection(String xmppDomain, int packetReplyTimeout, HttpServletRequest request) {
+		System.out.println("initializing connection to server" + xmppDomain);
 		SmackConfiguration.setDefaultPacketReplyTimeout(packetReplyTimeout);
-		/**
-		 * Create a HTTP Binding configuration.
-		 * 
-		 * @param https
-		 *            true if you want to use SSL (e.g. false for
-		 *            http://domain.lt:7070/http-bind).
-		 * @param host
-		 *            the hostname or IP address of the connection manager (e.g.
-		 *            domain.lt for http://domain.lt:7070/http-bind).
-		 * @param port
-		 *            the port of the connection manager (e.g. 7070 for
-		 *            http://domain.lt:7070/http-bind).
-		 * @param filePath
-		 *            the file which is described by the URL (e.g. /http-bind
-		 *            for http://domain.lt:7070/http-bind).
-		 * @param xmppDomain
-		 *            the XMPP service name (e.g. domain.lt for the user
-		 *            alice@domain.lt)
-		 */
-
-		BOSHConfiguration config = new BOSHConfiguration(https, host, port,
-				filePath, xmppDomain);
+	
 		// Create a configuration for the connection
-		config.setSecurityMode(SecurityMode.required);
-		config.setRosterLoadedAtLogin(true);
-		config.setCompressionEnabled(true);
-		config.setReconnectionAllowed(true); //If a connected XMPPConnection gets disconnected abruptly, automatic reconnection is enabled 
-		System.out.println("service name=" + config.getServiceName());
-		System.out.println("host=" + config.getHostAddresses());
-		System.out.println("security mode=" + config.getSecurityMode());
-		try {
-			System.out.println("uri=" + config.getURI());
-		} catch (URISyntaxException e1) {
-			e1.printStackTrace();
-		}
-
+		ConnectionConfiguration config = new ConnectionConfiguration(xmppDomain);
+		// Set the TLS security mode used when making the connection.
+		config.setSecurityMode(SecurityMode.enabled); 
+		// The new connection about to be established is going to be debugged.
+		config.setDebuggerEnabled(true); 	
+		// Roster will be loaded from the server when logging in.
+		config.setRosterLoadedAtLogin(true); 
+		// Enable compression of XMPP packets.
+		config.setCompressionEnabled(true); 
+		// If a connected XMPPConnection gets disconnected abruptly, automatic reconnection is enabled.
+		config.setReconnectionAllowed(true); 
+				
 		// Create a new XMPP connection object
-		xmppConnection = new XMPPBOSHConnection(config);
+		xmppConnection = new XMPPTCPConnection(config);
 		try {
 			// Connect to the server
 			xmppConnection.connect();
 			HttpSession httpSession = request.getSession();
 			httpSession.setAttribute("xmppConnection", xmppConnection);
-			System.out.println("Connected to server............"
-					+ xmppConnection.isConnected());
-			System.out.println("connection id="
-					+ xmppConnection.getConnectionID());
-
+			System.out.println("Connected to server............"+ xmppConnection.isConnected());
+			System.out.println("connection id="+ xmppConnection.getConnectionID());
+			System.out.println("is secure connection="+xmppConnection.isSecureConnection());
+			System.out.println("host: "+xmppConnection.getHost()+"port: "+xmppConnection.getPort()+"service name: "+xmppConnection.getServiceName());
 		} catch (NotConnectedException nce) {
 			nce.printStackTrace();
 		} catch (SmackException se) {
@@ -113,29 +85,42 @@ public class XmppChatClass {
 			xme.printStackTrace();
 		}
 	}
-	
-	public void getRoster() {
-		System.out.println("in function with connection id="+ xmppConnection.getConnectionID());
-		xmppConnection.getRoster().setSubscriptionMode(Roster.SubscriptionMode.manual);
 
+	public void registerListeners(final String vcardImage) {
+		System.out.println("in function with connection id="
+				+ xmppConnection.getConnectionID());
+
+		// Add a listener waiting for subscription packets
 		xmppConnection.addPacketListener(new PacketListener() {
 
 			@Override
-			public void processPacket(Packet paramPacket)throws NotConnectedException {
+			public void processPacket(Packet paramPacket)
+					throws NotConnectedException {
 
-				System.out.println("2 coonection id is %%%%%%%%%%% "+ xmppConnection.getConnectionID());
+				System.out.println("2 coonection id is %%%%%%%%%%% "
+						+ xmppConnection.getConnectionID());
 
 				if (paramPacket instanceof Presence) {
 					Presence presence = (Presence) paramPacket;
-					final RosterEntry newEntry = xmppConnection.getRoster().getEntry(presence.getFrom());
+					// check if the user is already on the roster
+					final RosterEntry newEntry = xmppConnection.getRoster()
+							.getEntry(presence.getFrom());
 
-					System.out.println(presence.getFrom() + " new entry in roster ?? "+ newEntry + " type= " + presence.getType());
+					System.out.println(presence.getFrom()
+							+ " new entry in roster ?? " + newEntry + " type= "
+							+ presence.getType());
 
+					// subscribe to a new user
 					if (presence.getType().equals(Presence.Type.subscribe)) {
 						if (newEntry == null) {
 							System.out.println("in if.........");
+							System.out
+									.println("roster mode 3 ++++++++++++++++++++ "
+											+ xmppConnection.getRoster()
+													.getSubscriptionMode());
 							try {
-								xmppConnection.getRoster().createEntry(presence.getFrom(), null, null);
+								xmppConnection.getRoster().createEntry(
+										presence.getFrom(), null, null);
 							} catch (NotLoggedInException e) {
 								e.printStackTrace();
 							} catch (NoResponseException e) {
@@ -143,15 +128,23 @@ public class XmppChatClass {
 							} catch (XMPPErrorException e) {
 								e.printStackTrace();
 							}
-							System.out.println("@@@@@@@@@@@@@@@ Friend request roster entry created for "+presence.getFrom());
-							//(new ReverseClass()).frndRequest(presence.getFrom(), presence.getTo());
+							System.out
+									.println("@@@@@@@@@@@@@@@ Friend request roster entry created for "
+											+ presence.getFrom());
 						} else {
 							System.out.println("in else........");
-							Presence againpresence = new Presence(Presence.Type.subscribed);
+							System.out
+									.println("roster mode 4 ++++++++++++++++++++ "
+											+ xmppConnection.getRoster()
+													.getSubscriptionMode());
+							Presence againpresence = new Presence(
+									Presence.Type.subscribed);
 							againpresence.setMode(Presence.Mode.available);
 							againpresence.setTo(presence.getFrom());
 							xmppConnection.sendPacket(againpresence);
-							System.out.println("subscribed sent to %%%%%%%%%%%%% "+ presence.getFrom());
+							System.out
+									.println("subscribed sent to %%%%%%%%%%%%% "
+											+ presence.getFrom());
 						}
 					}
 				}
@@ -177,15 +170,23 @@ public class XmppChatClass {
 			}
 		});
 
+		// Retrieve the user's roster from XMPP server
 		Roster roster = xmppConnection.getRoster();
+		System.out.println("roster mode 1 ++++++++++++++++++++++ "
+				+ roster.getSubscriptionMode());
+		// switch subscription mode, default is automatic
+		roster.setSubscriptionMode(Roster.SubscriptionMode.manual);
+		System.out.println("roster mode manual *******************************");
+		// add a listener in order to get updates on roster changes
 		roster.addRosterListener(new RosterListener() {
 			@Override
 			public void presenceChanged(Presence presence) {
-				System.out.println("Presence changed: ::::::::::::::::::: " + presence.getFrom()
-						+ " " + presence);
-				System.out.println("presence mode ::::::::::::::::::: "+presence.getMode());
-				System.out.println("presence type ::::::::::::: "+presence.getType());
-				System.out.println("presence is away ::::::::::::: "+presence.isAway());
+				System.out.println("Presence changed: ::::::::::::::::::: "
+						+ presence.getFrom() + " " + presence);
+				System.out.println("presence mode ::::::::::::::::::: "
+						+ presence.getMode());
+				System.out.println("presence type ::::::::::::: "
+						+ presence.getType());
 				ServerContext serverContext = ServerContextFactory
 						.get(servletContext);
 				(new ReverseClass()).updatePresence(serverContext, presence);
@@ -196,68 +197,118 @@ public class XmppChatClass {
 				System.out.println("Entries Updated %%%%%%%%%%%%%%%%%%% "
 						+ coll);
 				(new ReverseClass()).createRoster(xmppConnection,
-						xmppConnection.getUser().split("/")[0]);
+						xmppConnection.getUser().split("/")[0], vcardImage);
 			}
 
 			@Override
 			public void entriesDeleted(Collection<String> arg0) {
 				System.out.println("Entries Deleted %%%%%%%%%%%%%%%%%%%");
+				(new ReverseClass()).createRoster(xmppConnection,
+						xmppConnection.getUser().split("/")[0], vcardImage);
 			}
 
 			@Override
 			public void entriesAdded(Collection<String> coll) {
 				System.out.println("Entries Added %%%%%%%%%%%%%%% " + coll);
 				(new ReverseClass()).createRoster(xmppConnection,
-						xmppConnection.getUser().split("/")[0]);
+						xmppConnection.getUser().split("/")[0], vcardImage);
 			}
 
 		});
-
+		
+		//listen for connection closing and reconnection events.
+		xmppConnection.addConnectionListener(new ConnectionListener() {
+			
+			@Override
+			public void reconnectionSuccessful() {
+				System.out.println("listener reconnection successful (((((((((((((((((((((((((((((((((((((");
+			}
+			
+			@Override
+			public void reconnectionFailed(Exception e) {
+				System.out.println("listener reconnectionFailed (((((((((((((((((((((((((((((((((((((");
+			}
+			
+			@Override
+			public void reconnectingIn(int arg0) {
+				System.out.println("listener reconnectingIn (((((((((((((((((((((((((((((((((((((");
+			}
+			
+			@Override
+			public void connectionClosedOnError(Exception e) {
+				System.out.println("listener connectionClosedOnError (((((((((((((((((((((((((((((((((((((");
+			}
+			
+			@Override
+			public void connectionClosed() {
+				System.out.println("listener connectionClosed (((((((((((((((((((((((((((((((((((((");
+			}
+			
+			@Override
+			public void connected(XMPPConnection xmppConnection) {
+				System.out.println("listener connected (((((((((((((((((((((((((((((((((((((");
+			}
+			
+			@Override
+			public void authenticated(XMPPConnection xmppConnection) {
+				System.out.println("listener authenticated (((((((((((((((((((((((((((((((((((((");
+			}
+		});
+		
+		
 		ChatManager.getInstanceFor(xmppConnection).addChatListener(
 				new ChatManagerListener() {
-
 					@Override
 					public void chatCreated(Chat chat, boolean createdLocally) {
 						System.out.println("created locally ******** "
 								+ createdLocally);
-						// if(!createdLocally){
-						chat.addMessageListener(new MessageListener() {
+						if (!createdLocally) {
+							chat.addMessageListener(new MessageListener() {
 
-							@Override
-							public void processMessage(Chat chat,
-									Message message) {
-								System.out.println("Listener Received new msg="
-										+ message.getBody() + " from "
-										+ message.getFrom() + " to "
-										+ message.getTo() + " participant "
-										+ chat.getParticipant());
-								System.out.println("Listener message connection user="
-												+ xmppConnection.getUser());
-								(new ReverseClass()).listeningForMessages(message);
-							}
-						});
-						// }
+								@Override
+								public void processMessage(Chat chat, Message message) {
+									System.out
+											.println("Listener Received new msg="
+													+ message.getBody()
+													+ " from "
+													+ message.getFrom()
+													+ " to "
+													+ message.getTo()
+													+ " participant "
+													+ chat.getParticipant());
+									System.out
+											.println("Listener message connection user="
+													+ xmppConnection.getUser());
+									System.out.println("thread id= "+chat.getThreadID());
+									(new ReverseClass()).listeningForMessages(message);
+								}
+							});
+						}
 					}
 				});
-
 	}
 
-	public void performLogin(String username, String password) {
+	public void performLogin(String username, String password,
+			String onlineStatus) {
 		try {
 			// login to the connected server
 			xmppConnection.login(username, password);
-			
-			// Create the presence object with default availability 
+
+			// Create the presence object with default availability
 			Presence presence = new Presence(Presence.Type.available);
 			// Set the status message
-			presence.setStatus("I'm online");
+			presence.setStatus(onlineStatus);
 			// Set the highest priority
-	        presence.setPriority(24);
+			presence.setPriority(24);
 			// Set available presence mode
 			presence.setMode(Presence.Mode.available);
 			// Send the presence packet through the connection
 			xmppConnection.sendPacket(presence);
+			LastActivityManager lacManager=LastActivityManager.getInstanceFor(xmppConnection);
+			LastActivity activity = lacManager.getLastActivity("tanvi@silvereye.in/Smack");
+			System.out.println("activity= "+activity.getIdleTime());
 			
+
 		} catch (NotConnectedException nce) {
 			nce.printStackTrace();
 		} catch (SmackException se) {
@@ -273,24 +324,71 @@ public class XmppChatClass {
 		System.out.println(xmppConnection.getConnectionID()
 				+ " : Sending Message " + message + "from "
 				+ xmppConnection.getUser() + " to buddy " + buddyJID);
-		chat = ChatManager.getInstanceFor(xmppConnection).createChat(buddyJID,
-				messageListener);
+
+		if (activeChats.containsKey(buddyJID)) {
+			chat = activeChats.get(buddyJID);
+		} else {
+			chat = ChatManager.getInstanceFor(xmppConnection).createChat(
+					buddyJID, messageListener);
+			activeChats.put(buddyJID, chat);
+		}
 		try {
+			System.out.println("==> send message start.. Thread id="
+					+ chat.getThreadID());
+			long t1 = System.currentTimeMillis();
+			System.out.println("connected to server in msg="
+					+ xmppConnection.isConnected());
 			chat.sendMessage(message);
-			System.out.println("Message sent successfully");
+			long t2 = System.currentTimeMillis();
+			System.out.println("time lag == " + (t2 - t1));
+			System.out.println("==>send message ends");
+			System.out.println(xmppConnection.getConnectionID()
+					+ " : Message sent successfully");
 		} catch (NotConnectedException e) {
 			e.printStackTrace();
 		} catch (XMPPException e) {
 			e.printStackTrace();
 		}
 	}
+	
+	/*public void sendChatMessages(String message, String buddyJID) {
+		System.out.println(xmppConnection.getConnectionID()
+				+ " : Sending Message " + message + "from "
+				+ xmppConnection.getUser() + " to buddy " + buddyJID);
+		ChatManager chatManager= ChatManager.getInstanceFor(xmppConnection);
+		Chat chat=chatManager.createChat(buddyJID, new MessageListener() {
+			
+			@Override
+			public void processMessage(Chat chat, Message msg) {
+				System.out.println("received message thread id= "+chat.getThreadID());
+			}
+		});
+		try {
+			System.out.println("==> send message start.. Thread id="
+					+ chat.getThreadID());
+			long t1 = System.currentTimeMillis();
+			System.out.println("connected to server in msg="
+					+ xmppConnection.isConnected());
+			chat.sendMessage(message);
+			long t2 = System.currentTimeMillis();
+			System.out.println("time lag == " + (t2 - t1));
+			System.out.println("==>send message ends");
+			System.out.println(xmppConnection.getConnectionID()
+					+ " : Message sent successfully");
+		} catch (NotConnectedException e) {
+			e.printStackTrace();
+		} catch (XMPPException e) {
+			e.printStackTrace();
+		}
+	}*/
 
 	public void sendInvite(String address) {
 		Presence invite = new Presence(Presence.Type.subscribe);
 		invite.setTo(address);
 		try {
 			xmppConnection.sendPacket(invite);
-			System.out.println("INVITE SENT SUCCESSFULLY to " + address+ "............");
+			System.out.println("INVITE SENT SUCCESSFULLY to " + address
+					+ "............");
 		} catch (NotConnectedException e) {
 			e.printStackTrace();
 		}
@@ -298,16 +396,19 @@ public class XmppChatClass {
 
 	public void acceptFrndReq(String from) {
 		System.out.println("in accept friend request");
+		// accept a subscription request defined by the PresenceObject
+		// (originally received with the request)
 		Presence newpresence = new Presence(Presence.Type.subscribed);
-		// newpresence.setMode(Presence.Mode.available);
 		newpresence.setTo(from);
 		try {
 			xmppConnection.sendPacket(newpresence);
 		} catch (NotConnectedException e) {
 			e.printStackTrace();
 		}
-		System.out.println("subscribed sent to %%%%%%%%%%%%% " + from);
-		
+		System.out
+				.println("subscribed sent to in accept friend request %%%%%%%%%%%%% "
+						+ from);
+
 		Presence subscription = new Presence(Presence.Type.subscribe);
 		subscription.setTo(from);
 		try {
@@ -315,23 +416,75 @@ public class XmppChatClass {
 		} catch (NotConnectedException e) {
 			e.printStackTrace();
 		}
-		System.out.println("subscribe sent to %%%%%%%%%% " + from);
+		System.out
+				.println("subscribe sent to in accept friend request %%%%%%%%%% "
+						+ from);
 	}
 	
-	public void closeConnection(){
+	/*public void denyFrndReq(String from) {
+		Roster roster=xmppConnection.getRoster();
+		RosterEntry entry = roster.getEntry(from);
+		System.out.println("entry to be deleted "+entry.getUser());
 		try {
-			xmppConnection.disconnect();  // Disconnect from the server
-			System.out.println("xmpp connection closed !");
+			roster.removeEntry(entry);
+			System.out.println("entry deleted !!");
+		} catch (NotLoggedInException e) {
+			e.printStackTrace();
+		} catch (NoResponseException e) {
+			e.printStackTrace();
+		} catch (XMPPErrorException e) {
+			e.printStackTrace();
+		} catch (NotConnectedException e) {
+			e.printStackTrace();
+		}
+	}*/
+	
+	public void denyFrndReq(String from) {
+		System.out.println("in deny friend request");
+		// reject a subscription request defined by the PresenceObject
+		// (originally received with the request)
+		Presence presence = new Presence(Presence.Type.unsubscribe);
+		presence.setTo(from);
+		try {
+			xmppConnection.sendPacket(presence);
+		} catch (NotConnectedException e) {
+			e.printStackTrace();
+		}
+		System.out.println("unsubscribe sent to in deny friend request %%%%%%%%%%%%% "+ from);
+		Roster roster=xmppConnection.getRoster();
+		RosterEntry entry = roster.getEntry(from);
+		System.out.println("entry to be deleted "+entry.getUser());
+		try {
+			roster.removeEntry(entry);
+			System.out.println("entry deleted !!");
+		} catch (NotLoggedInException e) {
+			e.printStackTrace();
+		} catch (NoResponseException e) {
+			e.printStackTrace();
+		} catch (XMPPErrorException e) {
+			e.printStackTrace();
 		} catch (NotConnectedException e) {
 			e.printStackTrace();
 		}
 	}
-	
-	public void sendChangePresence(String mode){
-		if(mode.equals("online")){
+
+	public void closeConnection() {
+		try {
+			if (xmppConnection.isConnected()) {
+				xmppConnection.disconnect(); // Disconnect from the server
+				System.out.println("xmpp connection closed !");
+			}
+		} catch (NotConnectedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void sendChangePresence(String mode, String onlineStatus,
+			String awayStatus, String dndStatus) {
+		if (mode.equals("online")) {
 			Presence presence = new Presence(Presence.Type.available);
-			presence.setStatus("I'm online");
-	        presence.setPriority(24);
+			presence.setStatus(onlineStatus);
+			presence.setPriority(24);
 			presence.setMode(Presence.Mode.available);
 			try {
 				xmppConnection.sendPacket(presence);
@@ -339,10 +492,10 @@ public class XmppChatClass {
 				e.printStackTrace();
 			}
 		}
-        if(mode.equals("away")){
-        	Presence presence = new Presence(Presence.Type.available);
-			presence.setStatus("I'm not here right now");
-	        presence.setPriority(24);
+		if (mode.equals("away")) {
+			Presence presence = new Presence(Presence.Type.available);
+			presence.setStatus(awayStatus);
+			presence.setPriority(24);
 			presence.setMode(Presence.Mode.away);
 			try {
 				xmppConnection.sendPacket(presence);
@@ -350,10 +503,10 @@ public class XmppChatClass {
 				e.printStackTrace();
 			}
 		}
-        if(mode.equals("dnd")){
-        	Presence presence = new Presence(Presence.Type.available);
-			presence.setStatus("I'm currently busy");
-	        presence.setPriority(24);
+		if (mode.equals("dnd")) {
+			Presence presence = new Presence(Presence.Type.available);
+			presence.setStatus(dndStatus);
+			presence.setPriority(24);
 			presence.setMode(Presence.Mode.dnd);
 			try {
 				xmppConnection.sendPacket(presence);
@@ -361,8 +514,8 @@ public class XmppChatClass {
 				e.printStackTrace();
 			}
 		}
-        if(mode.equals("offline")){
-        	Presence presence = new Presence(Presence.Type.unavailable);
+		if (mode.equals("offline")) {
+			Presence presence = new Presence(Presence.Type.unavailable);
 			try {
 				xmppConnection.sendPacket(presence);
 			} catch (NotConnectedException e) {

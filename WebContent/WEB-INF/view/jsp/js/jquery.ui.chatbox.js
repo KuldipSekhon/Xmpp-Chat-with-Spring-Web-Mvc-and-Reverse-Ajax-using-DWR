@@ -209,6 +209,7 @@
                             		buddyJID:title,
                             	},
                             	success: function(data){
+                            		//alert(data);
                             	}
                             });
                         }

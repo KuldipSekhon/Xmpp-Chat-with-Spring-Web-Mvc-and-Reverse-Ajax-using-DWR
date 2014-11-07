@@ -1,3 +1,7 @@
+<%@page import="org.jivesoftware.smack.packet.RosterPacket"%>
+<%@page import="org.jivesoftware.smack.XMPPException.XMPPErrorException"%>
+<%@page import="org.jivesoftware.smack.SmackException.NotConnectedException"%>
+<%@page import="org.jivesoftware.smack.SmackException.NoResponseException"%>
 <%@page import="org.jivesoftware.smackx.pubsub.PresenceState"%>
 <%@page import="org.jivesoftware.smackx.vcardtemp.provider.VCardProvider"%>
 <%@page import="org.jivesoftware.smack.provider.ProviderManager"%>
@@ -8,8 +12,10 @@
 <%@page import="org.jivesoftware.smack.Roster"%>
 <%@page import="org.jivesoftware.smack.packet.Presence"%>
 <%@page import="org.jivesoftware.smack.RosterEntry"%>
+<%@page import="org.jivesoftware.smack.XMPPConnection"%>
+<%@page import="org.jivesoftware.smack.tcp.XMPPTCPConnection"%>
 <%@page import="java.util.Collection"%>
-<%@page import="org.jivesoftware.smack.bosh.XMPPBOSHConnection"%>
+
 <%@ page language="java" contentType="text/html; charset=UTF-8"
     pageEncoding="UTF-8"%>
 <%@taglib uri="http://www.springframework.org/tags/form" prefix="form"%>
@@ -39,10 +45,14 @@
     <script type="text/javascript" src="js/jquery.ui.chatbox.js"></script>
 	
     <script type="text/javascript">
-				function getChatBox(username, image){
+				function getChatBox(username){
 				var box = null;
 				var chatname=username.split("name");
 				var userchatid=username.split("@");
+				
+				var imagesrc=document.getElementById(chatname[0]+"presence").src;
+				var imagesp=imagesrc.split("images/");
+				var image=imagesp[1];
 				
 				var id="#"+userchatid[0]+"open_chat_box";
 				$("#appendchatdiv").append("<div id='"+userchatid[0]+"open_chat_box'></div>");
@@ -65,7 +75,6 @@
 						*/
 						title : chatname[0],
 						imagenm : image,
-						//alert("img="+imagenm);
 						/*
 							messageSend as name suggest,
 							this will called when message sent.
@@ -197,6 +206,21 @@ function friendRequest(from){
 </script>
 
 <script type="text/javascript">
+function friendDeny(from){
+	var acceptfrom=from.split("denybtn");
+		$.ajax ({
+	    	url:"${pageContext.request.contextPath}/denyFrndReq",
+	    	data: {
+	    		fromJID:acceptfrom[0],
+	    	},
+	    	success: function(data){
+	    		alert(data);
+	    	}
+	    });
+}
+</script>
+
+<script type="text/javascript">
 function createChatRow(addDivs){
 	document.getElementById("test").innerHTML=addDivs;
 }
@@ -207,6 +231,7 @@ function closeConnection(){
 	$.ajax ({
     	url:"${pageContext.request.contextPath}/logoutChat",
     	success: function(data){
+    		window.location.href="${pageContext.request.contextPath}/index";
     	}
     });
 	
@@ -217,7 +242,7 @@ function closeConnection(){
 function changePresence(){
 	var pres=document.getElementById("statusChangeSelect").value;
 	$.ajax ({
-    	url:"${pageContext.request.contextPath}/changePresence",
+    	url:"${pageContext.request.contextPath}/changedPresence",
     	data: {
     		presmode:pres,
     	},
@@ -227,10 +252,17 @@ function changePresence(){
 }
 </script>
 
+<script type="text/javascript">
+function getAltImage(imgid){
+	var pic=document.getElementById(imgid);
+	pic.src="images/chatuser.png"
+}
+</script>
+
 </head>
 <body onload="onloadmethod()">
 <%HttpSession hsession = request.getSession();
-XMPPBOSHConnection connection=(XMPPBOSHConnection)hsession.getAttribute("xmppConnection");
+XMPPConnection connection=(XMPPTCPConnection)hsession.getAttribute("xmppConnection");
 String loggedUser=connection.getUser().split("/")[0];
 String url=(String)request.getAttribute("imageurl");
 String imgsrc=url+loggedUser+".jpg";
@@ -241,7 +273,7 @@ String imgsrc=url+loggedUser+".jpg";
     <div class="header">
     
                   <div class="logo"></div>
-                     <!----------------// SEARCH HERE ----------------------->
+                     <!----------------// SEARC HERE ----------------------->
                       <div class="serach_top" onclick="tab_search()">
                       
                          
@@ -525,26 +557,33 @@ String imgsrc=url+loggedUser+".jpg";
       <input type="button" value="Invite" onclick="sendBuddyInvite()" />
       </div>
                                  
-                                      <div class="cheat_heading">
+                                      <div class="cheat_heading" style="height: 32px;">
                                       <%VCard card = new VCard(); //To load VCard 
-                                        card.load(connection); //load own vcard %>
-                                        <div class="small_images">
-                                           <img src="<%=imgsrc %>" />
+                                      try {
+                                        card.load(connection); //load own vcard 
+                                      } catch (NoResponseException e) {
+                              			e.printStackTrace();
+                              		} catch (XMPPErrorException e) {
+                              			e.printStackTrace();
+                              		} catch (NotConnectedException e) {
+                              			e.printStackTrace();
+                              		}  %>
+                                        <div class="small_images" style="margin-left: 0px; margin-right: 12px;">
+                                           <img src="<%=imgsrc %>" onerror="getAltImage(this.id)" id="noimage"/>
                                         </div>
                                       <%=card.getFirstName()%>
-        <select id="statusChangeSelect" onchange="changePresence()">
+        <select id="statusChangeSelect" onchange="changePresence()" style="margin-left: 41px;">
         <option value="online">Online</option>
         <option value="away">Idle</option>
         <option value="dnd">Busy</option>
         <option value="offline">Offline</option>
         </select>
                                       </div>
+                                      
                                       <div class="chaet_scroll cheat_height_big" id="test">
     <!-------- // CHEAT ROW STARTED HERE ------------->
                                                                                  
-  <%
-  String path="off_line.png";
-  Roster roster=connection.getRoster();
+  <%Roster roster=connection.getRoster();
   Collection<RosterEntry> entries=roster.getEntries();
   System.out.println("ROSTER SIZE="+entries.size());
   Presence presence;
@@ -552,55 +591,67 @@ String imgsrc=url+loggedUser+".jpg";
   ArrayList<String> frndRequests=new ArrayList<String>();
   for(RosterEntry re:entries){
   	System.out.println("Buddy=="+re.getName()+" & Status="+re.getStatus()+" User="+re.getUser()+" type="+re.getType());
-  	String user=re.getUser();
-  	
+  	String user=re.getUser();	
   	String imagesrc=url+user+".jpg";
-  	
-    card.load(connection, re.getUser()); //load Buddy's VCard
-    System.out.println("vcard fname----vvvvvvvvvvvvvvvv "+card.getFirstName());
- 	System.out.println("vcard lname----vvvvvvvvvvvvvvvv "+card.getLastName());
- 	System.out.println("vcard avatar----vvvvvvvvvvvvv "+card.getAvatar());
- 	System.out.println("vcard nickname----vvvvvvvvvvvvvvvv "+card.getNickName());
- 	System.out.println("vcard email home----vvvvvvvvvvvvvvvv "+card.getEmailHome());
- 	System.out.println("vcard email work----vvvvvvvvvvvvv "+card.getEmailWork());
- 	System.out.println("vcard avatar mime type----vvvvvvvvvvvvv "+card.getAvatarMimeType());
- 	System.out.println("vcard jabberid----vvvvvvvvvvvvv "+card.getJabberId()); 
-  	
+ 	
   	presence=roster.getPresence(user);
   	System.out.println("before if "+user+" is offline type="+presence.getType()+"Mode="+presence.getMode());
-  	String type=re.getType().toString();
-	if( re.getStatus()==null && type.equals("both")){
+  	RosterPacket.ItemType type=re.getType();
+	if( re.getStatus()==null && type==RosterPacket.ItemType.both){
+		 try {
+	  		 card.load(connection, re.getUser()); //load Buddy's VCard
+	  	 } catch (NoResponseException e) {
+				e.printStackTrace();
+			} catch (XMPPErrorException e) {
+				e.printStackTrace();
+			} catch (NotConnectedException e) {
+				e.printStackTrace();
+			} 
+	   
+	    System.out.println("vcard fname----vvvvvvvvvvvvvvvv "+card.getFirstName());
+	 	System.out.println("vcard lname----vvvvvvvvvvvvvvvv "+card.getLastName());
+	 	System.out.println("vcard avatar----vvvvvvvvvvvvv "+card.getAvatar());
+	 	System.out.println("vcard nickname----vvvvvvvvvvvvvvvv "+card.getNickName());
+	 	System.out.println("vcard email home----vvvvvvvvvvvvvvvv "+card.getEmailHome());
+	 	System.out.println("vcard email work----vvvvvvvvvvvvv "+card.getEmailWork());
+	 	System.out.println("vcard avatar mime type----vvvvvvvvvvvvv "+card.getAvatarMimeType());
+	 	System.out.println("vcard jabberid----vvvvvvvvvvvvv "+card.getJabberId()); 
   	if(presence.getType()==Presence.Type.available){
   		Presence.Mode mode=presence.getMode();
   		System.out.println(user+" is online");
   		%>
   		      <div class="cheat_row" >
                  <div class="small_images">
-                    <img src="<%=imagesrc %>" />
+                    <img src="<%=imagesrc %>" onerror="getAltImage(this.id)" id="<%=user+"noimage" %>" />
                  </div>
    <%if(mode==Presence.Mode.available || mode==null){ %>
                  <div class="contact_information">
-                    <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id, 'online_file.png')"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
-                     <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;" ><%=presence.getStatus() %></p></a>  
+                    <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id)"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
+                <%if(presence.getStatus()!=null){ %>   
+                     <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;" ><%=presence.getStatus() %></p>
+                  <%} else {%>   
+                  <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;" ></p>
+                  <%} %>
+                     </a>  
                                                     </div>
                                                     <div class="online_file" id="<%=user%>" >
-                                                      <img src="images/online_file.png" />
+                                                      <img src="images/online_file.png" id="<%=user+"presence"%>" />
            </div>
             <%} if(mode==Presence.Mode.away) {%>    
         <div class="contact_information">
-                    <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id, 'online_file.png')"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
+                    <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id)"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
                      <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;" ><%=presence.getStatus() %></p></a>  
                                                     </div>
                                                     <div class="online_file" id="<%=user%>" >
-                                                      <img src="images/bullet_orange.png" />
+                                                      <img src="images/bullet_orange.png" id="<%=user+"presence"%>"  />
            </div>
            <%} if(mode==Presence.Mode.dnd){ %>  
              <div class="contact_information">
-                    <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id, 'online_file.png')"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
+                    <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id)"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
                      <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;" ><%=presence.getStatus() %></p></a>  
                                                     </div>
                                                     <div class="online_file" id="<%=user%>" >
-                                                      <img src="images/bullet_red.png" />
+                                                      <img src="images/bullet_red.png" id="<%=user+"presence"%>"  />
            </div>
            <%} %>                                     
                                               </div>
@@ -608,20 +659,25 @@ String imgsrc=url+loggedUser+".jpg";
   	else{
   		System.out.println(user+" is offline type="+presence.getType()); %>
   		 <div class="cheat_row" >
-         <div class="small_images">
-           <img src="<%=imagesrc %>" />
+         <div class="small_images" >
+           <img src="<%=imagesrc %>" onerror="getAltImage(this.id)" id="<%=user+"noimage" %>" />
          </div>
          <div class="contact_information">
-            <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id, 'off_line.png')"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
-            <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;"><%=presence.getStatus() %></p></a>
+            <a href="#" id="<%=user+"name"%>" onclick="getChatBox(this.id)"><p><strong><%=card.getFirstName()+" "+card.getLastName() %></strong></p>
+            <%if(presence.getStatus()!=null){ %>   
+            <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;"><%=presence.getStatus() %></p>
+            <%} else {%>   
+            <p id="<%=user+"status"%>" style="margin-left: -94px; margin-top: 14px;" ></p>
+            <%} %>
+            </a>
          </div>
          <div class="online_file" id="<%=user%>" >
-           <img src="images/off_line.png"/>
+           <img src="images/off_line.png" id="<%=user+"presence"%>" />
          </div>
    
    </div>
  <% 	} } 
-	 else if(re.getStatus()==null && (type.equals("none") || type.equals("to"))){
+	 else if(re.getStatus()==null && (type==RosterPacket.ItemType.none || type==RosterPacket.ItemType.to)){
 		 frndRequests.add(user); 
 		 }
 	else {
@@ -629,12 +685,15 @@ String imgsrc=url+loggedUser+".jpg";
 		 }
   }	
 	for(String frnds:frndRequests){ %>
-	 <div class="cheat_row" >
+	 <div class="cheat_row" style="margin-bottom: 10px;">
      <div class="contact_information">
         <a href="#" id="<%=frnds+"name"%>"><p><strong><%=frnds %></strong><br/></p></a>
      </div>
      <div class="online_file" >
      <input type="button" value="Accept" onclick="friendRequest(this.id)" id="<%=frnds+"acceptbtn"%>" style="margin-left: -56px;"/>
+     </div>
+      <div class="online_file" >
+     <input type="button" value="Deny" onclick="friendDeny(this.id)" id="<%=frnds+"denybtn"%>" style="margin-left: -56px; margin-top: 25px;"/>
      </div>
 </div>
 <%} for(String pending:pendingRequests){ %>

@@ -23,12 +23,7 @@
         http://www.directwebremoting.org/schema/spring-dwr
         http://www.directwebremoting.org/schema/spring-dwr-3.0.xsd">
         
-         <dwr:configuration />
-       <!--  <dwr:annotation-config />
-        <dwr:url-mapping />
-        <dwr:controller id="dwrController" debug="true" /> -->
-       
-      
+         <dwr:configuration />      
   
  <!-- Scans the classpath for annotated components that will be auto-registered as Spring beans.
  For example @Controller and @Service. Make sure to set the correct base-package-->      
@@ -111,4 +106,37 @@ Note that, with Spring 3.0, this tag works in Servlet MVC only!  -->
 
 <bean id="webContextFactory" class="org.directwebremoting.WebContextFactory"></bean>
 
+<!-- Activiti ProcessEngineFactoryBean Configuration begins -->
+
+<bean id="processEngineConfiguration" class="org.activiti.spring.SpringProcessEngineConfiguration">
+  <property name="databaseType" value="mysql"></property>
+  <property name="dataSource" ref="dataSource" />
+  <property name="transactionManager" ref="transactionManager" />
+  <property name="databaseSchemaUpdate" value="true" />
+  <property name="jobExecutorActivate" value="false" />
+  <property name="history" value="audit" />
+  <property name="deploymentResources" value="classpath*:/com/edms/activitiautodeployment/autodeploy.*.bpmn20.xml" />
+  <property name="deploymentMode" value="single-resource" />
+</bean>
+<!-- This bean takes a process engine configuration and creates the process engine -->
+<bean id="processEngine" class="org.activiti.spring.ProcessEngineFactoryBean">
+  <property name="processEngineConfiguration" ref="processEngineConfiguration" />
+</bean>
+
+<!-- The repository service provides functionality to deploy, query, delete, and
+retrieve process definitions -->
+<bean id="repositoryService" factory-bean="processEngine" factory-method="getRepositoryService" />
+<!-- The runtime service provides an interface to start and query process instances. In addition, process variables can be retrieved and set,
+ and processes can be signaled to leave a wait state -->
+<bean id="runtimeService" factory-bean="processEngine" factory-method="getRuntimeService" />
+<!-- With the task service you can do a lot of things with user tasks. For exam­
+ple, you can create a new task and query Activiti for a list of tasks that a
+specific user can claim -->
+<bean id="taskService" factory-bean="processEngine" factory-method="getTaskService" />
+<!--  To retrieve information about completed process instances, use the history service interface.  -->
+<bean id="historyService" factory-bean="processEngine" factory-method="getHistoryService" />
+<!-- The management service can be used to query the Activiti tables and execute jobs -->
+<bean id="managementService" factory-bean="processEngine" factory-method="getManagementService" />
+
+<!-- Activiti ProcessEngineFactoryBean Configuration ends -->
 </beans>
